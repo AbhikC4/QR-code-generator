@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super QR</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #ffe4e1);
+      color: #333;
+    }
+
+    header {
+      background: linear-gradient(to right, #fbd3e9, #bbd2c5);
+      padding: 2rem;
+      text-align: center;
+      font-size: 2.5rem;
+      color: #333;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .main-container {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      background: #ffffff;
+      padding: 2rem;
+      margin: 2rem auto;
+      width: 95%;
+      max-width: 1200px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .options-box {
+      flex: 1 1 55%;
+      margin-right: 2rem;
+    }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: flex-start;
+      margin-bottom: 2rem;
+    }
+
+    .option-btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 20px;
+      background: linear-gradient(to right, #93f9b9, #1d976c);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+
+    .option-btn:hover {
+      transform: scale(1.1);
+    }
+    .option-btn.active-btn {
+      background: linear-gradient(to right, #ff4b2b, #ff416c);
+      transform: scale(1.15);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255, 65, 108, 0.4);
+    }
+
+    .input-box {
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .input-box.active {
+      display: block;
+    }
+
+    input[type="text"], input[type="file"], select {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.6rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      margin-top: 2rem;
+    }
+
+    .generate-btn {
+      display: block;
+      margin: 2rem auto 1rem;
+      padding: 0.8rem 2rem;
+      font-size: 1.2rem;
+      background: linear-gradient(to right, #f77062, #fe5196);
+      color: white;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+	  .password-wrapper {
+  position: relative;
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding: 0.6rem 2.5rem 0.6rem 0.6rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #444;
+}
+
+
+    #qr-preview {
+      flex: 1 1 35%;
+      text-align: center;
+      margin-top: 2rem;
+      border: 2px dashed #ccc;
+      padding: 2rem;
+      min-height: 200px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      background: linear-gradient(to right, #d3cce3, #e9e4f0);
+      color: #333;
+      margin-top: 4rem;
+      font-size: 0.95rem;
+    }
+  </style>
+  <script>
+  function switchInput(type) {
+    document.querySelectorAll('.input-box').forEach(box => box.classList.remove('active'));
+    const activeBox = document.getElementById(`${type}-input`);
+    if (activeBox) activeBox.classList.add('active');
+
+    document.querySelectorAll('.option-btn').forEach(btn => {
+      const btnText = btn.textContent.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const typeKey = type.toLowerCase().replace(/[^a-z0-9]/g, '');
+      btn.classList.remove('active-btn');
+      if (btnText === typeKey) {
+        btn.classList.add('active-btn');
+      }
+    });
+  }
+
+  function isValidURL(str) {
+    try {
+      new URL(str);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function generateQR() {
+    const activeInput = document.querySelector('.input-box.active');
+    const type = activeInput.id.replace('-input', '');
+    let input = '';
+
+    if (type === 'link') {
+      input = document.getElementById('link-url').value.trim();
+      if (
+        !input ||
+        (!input.includes('.') && !input.includes('@')) ||
+        (input.includes('.') && input.includes('@'))
+      ) {
+        return alert("Please enter a valid website link (with '.') or UPI ID (with '@')!");
+      }
+    } else if (type === 'text') {
+      input = document.getElementById('text-msg').value.trim();
+      if (!input) return alert("Please enter some text!");
+    } else if (type === 'wifi') {
+      const ssid = document.getElementById('wifi-name').value.trim();
+      const password = document.getElementById('wifi-password').value.trim();
+      if (!ssid) return alert("Please enter Wi-Fi SSID");
+      if (!password) return alert("Please enter Wi-fi password");
+      input = `WIFI:T:WPA;S:${ssid};P:${password};;`;
+    } else if (type === 'email') {
+      input = document.getElementById('email-addr').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
+        return alert("Please enter a valid email address!");
+      }
+    } else if (type === 'phone') {
+      input = document.getElementById('phone-num').value.trim();
+      if (!/^\+91\d{10}$/.test(input)) return alert("Please enter a valid Indian phone number with +91");
+    } else if (type === 'image') {
+      const fileInput = document.getElementById('upload-img');
+      if (fileInput.files.length === 0) return alert("Please upload an image");
+      input = fileInput.files[0].name; // Not used in backend for 'image', just kept for consistency
+    } else {
+      return alert("This QR type is not yet implemented.");
+    }
+
+    const color = document.getElementById('qr-color').value;
+    const bg = document.getElementById('qr-bg').value;
+    const size = document.getElementById('qr-size').value;
+
+    try {
+      let res;
+
+      if (type === 'image') {
+        const fileInput = document.getElementById('upload-img');
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('type', type);
+        formData.append('color', color);
+        formData.append('bg', bg);
+        formData.append('size', size);
+
+        res = await fetch('http://127.0.0.1:5000/generate_qr', {
+          method: 'POST',
+          body: formData
+        });
+      } else {
+        res = await fetch('http://127.0.0.1:5000/generate_qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input, type, color, bg, size })
+        });
+      }
+
+      const data = await res.json();
+      if (data.filename) {
+        document.getElementById('qr-preview').innerHTML = `
+          <img src="http://127.0.0.1:5000/static/qrcodes/${data.filename}" style="width: 100%; max-width: 300px;" />
+          <br/><a href="http://127.0.0.1:5000/static/qrcodes/${data.filename}" download class="option-btn">Download PNG</a>
+        `;
+      } else {
+        alert("QR generation failed");
+      }
+    } catch (err) {
+      alert("Error contacting server: " + err.message);
+    }
+  }
+	  function showPasswordOnce() {
+  const pwField = document.getElementById('wifi-password');
+  pwField.type = 'text';
+  setTimeout(() => {
+    pwField.type = 'password';
+  }, 1000); // show for 1 second
+}
+
+</script>
+
+
+</head>
+<body>
+  <header>Super QR</header>
+  <div class="main-container">
+    <div class="options-box">
+      <div class="options">
+        <button class="option-btn" onclick="switchInput('link')">Link</button>
+        <button class="option-btn" onclick="switchInput('text')">Text</button>
+        <button class="option-btn" onclick="switchInput('wifi')">Wi-Fi</button>
+        <button class="option-btn" onclick="switchInput('image')">Image</button>
+        <button class="option-btn" onclick="switchInput('email')">Email</button>
+        <button class="option-btn" onclick="switchInput('phone')">Phone</button>
+      </div>
+      <div id="link-input" class="input-box active">
+        <label for="link-url">Enter your link:</label>
+        <input type="text" id="link-url" placeholder="www.example.com or abc123@okupi">
+      </div>
+      <div id="text-input" class="input-box">
+        <label for="text-msg">Enter your Text:</label>
+        <input type="text" id="text-msg" placeholder="Enter your message">
+      </div>
+		<!-- Wi-Fi Input -->
+<div id="wifi-input" class="input-box">
+  <label for="wifi-name">Wi-Fi Name (SSID):</label>
+  <input type="text" id="wifi-name" placeholder="Enter SSID">
+ <label for="wifi-password">Wi-Fi Password:</label>
+<div class="password-wrapper">
+  <input type="password" id="wifi-password" placeholder="Enter Password" />
+  <button type="button" onclick="showPasswordOnce()" class="eye-btn">👁️</button>
+</div>
+  <label for="wifi-encryption">Encryption Type:</label>
+  <select id="wifi-encryption">
+    <option value="WPA">WPA/WPA2</option>
+    <option value="WEP">WEP</option>
+    <option value="nopass">None</option>
+  </select>
+</div>
+
+<!-- Email Input -->
+<div id="email-input" class="input-box">
+  <label for="email-addr">Email Address:</label>
+  <input type="text" id="email-addr" placeholder="e.g. example@email.com">
+</div>
+
+<!-- Phone Input -->
+<div id="phone-input" class="input-box">
+  <label for="phone-num">Phone Number:</label>
+  <input type="text" id="phone-num" placeholder="e.g. +919876543210">
+</div>
+
+<!-- Image Input -->
+<div id="image-input" class="input-box">
+  <label for="upload-img">Upload Image:</label>
+  <input type="file" id="upload-img" accept="image/*">
+</div>
+
+      <div class="controls">
+        <div>
+          <label for="qr-color">QR Color:</label>
+          <input type="color" id="qr-color" value="#000000">
+        </div>
+        <div>
+          <label for="qr-bg">Background:</label>
+          <input type="color" id="qr-bg" value="#ffffff">
+        </div>
+        <div>
+          <label for="qr-size">Size:</label>
+          <select id="qr-size">
+            <option value="150">150x150</option>
+            <option value="200">200x200</option>
+            <option value="300">300x300</option>
+          </select>
+        </div>
+      </div>
+      <button class="generate-btn" onclick="generateQR()">Generate QR Code</button>
+    </div>
+    <div id="qr-preview">
+      <!-- QR code will appear here -->
+    </div>
+  </div>
+  <footer>
+    <p>Super QR is your one-stop solution for generating custom QR codes for websites, Wi-Fi, text, emails, phone numbers, and even uploaded images. Enjoy flexibility and stylish customization with colors, sizes, and advanced formats to suit every need, be it professional or personal use.</p>
+    <p>&copy; 2025 Super QR - All rights reserved.</p>
+  </footer>
+</body>
+</html>
